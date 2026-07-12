@@ -1,0 +1,4 @@
+github.com/holoplot/go-evdev v0.0.0-20260504100651-66d1748fe847 h1:1rQ5UQXFm02DXEtsIpotfA32WJ9KceS6t8w5K8QtFqc=
+github.com/holoplot/go-evdev v0.0.0-20260504100651-66d1748fe847/go.mod h1:iHAf8OIncO2gcQ8XOjS7CMJ2aPbX2Bs0wl5pZyanEqk=
+github.com/pelletier/go-toml/v2 v2.3.1 h1:MYEvvGnQjeNkRF1qUuGolNtNExTDwct51yp7olPtrEc=
+github.com/pelletier/go-toml/v2 v2.3.1/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=

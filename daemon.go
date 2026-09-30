@@ -8,6 +8,13 @@ import (
 	"github.com/holoplot/go-evdev"
 )
 
+const maxSlots = 10
+
+type slotState struct {
+	active bool
+	x, y   int
+}
+
 type WheelpadDaemon struct {
 	cfgWp    WheelpadConfig
 	cfgSpeed SpeedConfig
@@ -24,7 +31,7 @@ type WheelpadDaemon struct {
 	isTouching bool
 	scrollMode bool
 
-	fingerCount int
+	fingerCount  int
 	hasLastAngle bool
 	lastAngle    float64
 	lastTime     time.Time
@@ -35,6 +42,9 @@ type WheelpadDaemon struct {
 
 	currentX int
 	currentY int
+
+	slot  int
+	slots [maxSlots]slotState
 
 	scrollSign int32
 }
@@ -109,7 +119,7 @@ func NewWheelpadDaemon(devicePath string, cfg Config) (*WheelpadDaemon, error) {
 		isTouching: false,
 		scrollMode: false,
 
-		fingerCount: 0,
+		fingerCount:  0,
 		hasLastAngle: false,
 
 		lastDirection:       1,
@@ -159,18 +169,36 @@ func (d *WheelpadDaemon) updatePosition(event *evdev.InputEvent) {
 	if event.Type != evdev.EV_ABS {
 		return
 	}
-	if event.Code == evdev.ABS_X || event.Code == evdev.ABS_MT_POSITION_X {
-		d.currentX = int(event.Value)
-	} else if event.Code == evdev.ABS_Y || event.Code == evdev.ABS_MT_POSITION_Y {
-		d.currentY = int(event.Value)
+	switch event.Code {
+	case evdev.ABS_MT_SLOT:
+		if event.Value >= 0 && int(event.Value) < maxSlots {
+			d.slot = int(event.Value)
+		}
+	case evdev.ABS_MT_TRACKING_ID:
+		d.slots[d.slot].active = event.Value >= 0
+	case evdev.ABS_MT_POSITION_X:
+		d.slots[d.slot].x = int(event.Value)
+	case evdev.ABS_MT_POSITION_Y:
+		d.slots[d.slot].y = int(event.Value)
+	}
+}
+
+// primaryPosition follows the lowest active slot so a second finger never hijacks the angle.
+func (d *WheelpadDaemon) primaryPosition() {
+	for _, s := range d.slots {
+		if s.active {
+			d.currentX, d.currentY = s.x, s.y
+			return
+		}
 	}
 }
 
 func (d *WheelpadDaemon) processFrame() {
+	d.primaryPosition()
+	d.detectFingerCount()
 	if d.detectTouchChange() {
 		return
 	}
-	d.detectFingerCount()
 
 	if d.scrollMode && d.isTouching {
 		d.handleScroll()

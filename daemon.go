@@ -314,38 +314,7 @@ func (d *WheelpadDaemon) handleScroll() {
 	d.lastHorizontal = horizontal
 	d.lastAngularVelocity = angularVelocity
 
-	d.writeMutex.Lock()
-	if horizontal {
-		d.vScroll.WriteOne(&evdev.InputEvent{
-			Type:  evdev.EV_REL,
-			Code:  evdev.REL_HWHEEL,
-			Value: direction * multiplier,
-		})
-		d.vScroll.WriteOne(&evdev.InputEvent{
-			Type:  evdev.EV_REL,
-			Code:  evdev.REL_HWHEEL_HI_RES,
-			Value: hiresValue,
-		})
-		logDebug("水平: dir=%d mult=%d vel=%.2f", direction, multiplier, angularVelocity)
-	} else {
-		d.vScroll.WriteOne(&evdev.InputEvent{
-			Type:  evdev.EV_REL,
-			Code:  evdev.REL_WHEEL,
-			Value: direction * multiplier,
-		})
-		d.vScroll.WriteOne(&evdev.InputEvent{
-			Type:  evdev.EV_REL,
-			Code:  evdev.REL_WHEEL_HI_RES,
-			Value: hiresValue,
-		})
-		logDebug("垂直: dir=%d mult=%d vel=%.2f", direction, multiplier, angularVelocity)
-	}
-	d.vScroll.WriteOne(&evdev.InputEvent{
-		Type:  evdev.EV_SYN,
-		Code:  evdev.SYN_REPORT,
-		Value: 0,
-	})
-	d.writeMutex.Unlock()
+	d.inertia.writeScroll(hiresValue, horizontal)
 
 	d.lastAngle = currentAngle
 	d.lastTime = now

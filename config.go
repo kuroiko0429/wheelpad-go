@@ -31,10 +31,11 @@ type SpeedConfig struct {
 }
 
 type InertiaConfig struct {
-	Enabled     bool    `toml:"enabled"`
-	Friction    float64 `toml:"friction"`
-	MinVelocity float64 `toml:"min_velocity"`
-	Interval    float64 `toml:"interval"` // in seconds
+	Enabled      bool    `toml:"enabled"`
+	Friction     float64 `toml:"friction"`
+	MinVelocity  float64 `toml:"min_velocity"`
+	StopVelocity float64 `toml:"stop_velocity"`
+	Interval     float64 `toml:"interval"` // in seconds
 }
 
 type Config struct {

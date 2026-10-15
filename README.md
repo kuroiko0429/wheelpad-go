@@ -133,6 +133,9 @@ thresholds = [
 enabled = true
 friction = 0.85
 min_velocity = 0.5
+# Optional: a lower stopping speed lets deliberate flicks fade out gently.
+# When omitted or <= 0, uses min_velocity (original behavior).
+# stop_velocity = 0.2
 interval = 0.016
 ```
 

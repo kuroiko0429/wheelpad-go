@@ -59,8 +59,9 @@ func ioctlMakeCode(dir, typ, nr int, size uintptr) uint32 {
 	return code
 }
 
-func doIoctl(fd uintptr, code uint32, ptr unsafe.Pointer) error {
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(code), uintptr(ptr))
+// These uinput requests take an integer value (or zero), not a pointer.
+func doIoctl(fd uintptr, code uint32, arg uintptr) error {
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(code), arg)
 	if errno != 0 {
 		return errno
 	}
@@ -70,71 +71,71 @@ func doIoctl(fd uintptr, code uint32, ptr unsafe.Pointer) error {
 func ioctlUISETEVBIT(fd uintptr, ev uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 100, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(ev))
+	return doIoctl(fd, code, ev)
 }
 
 func ioctlUISETKEYBIT(fd uintptr, key uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 101, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(key))
+	return doIoctl(fd, code, key)
 }
 
 func ioctlUISETRELBIT(fd uintptr, rel uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 102, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(rel))
+	return doIoctl(fd, code, rel)
 }
 
 func ioctlUISETABSBIT(fd uintptr, abs uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 103, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(abs))
+	return doIoctl(fd, code, abs)
 }
 
 func ioctlUISETMSCBIT(fd uintptr, msc uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 104, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(msc))
+	return doIoctl(fd, code, msc)
 }
 
 func ioctlUISETLEDBIT(fd uintptr, led uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 105, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(led))
+	return doIoctl(fd, code, led)
 }
 
 func ioctlUISETSNDBIT(fd uintptr, snd uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 106, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(snd))
+	return doIoctl(fd, code, snd)
 }
 
 func ioctlUISETFFBIT(fd uintptr, fe uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 107, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(fe))
+	return doIoctl(fd, code, fe)
 }
 
 func ioctlUISETSWBIT(fd uintptr, sw uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 109, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(sw))
+	return doIoctl(fd, code, sw)
 }
 
 func ioctlUISETPROPBIT(fd uintptr, prop uintptr) error {
 	var p int32
 	code := ioctlMakeCode(ioctlDirWrite, 'U', 110, unsafe.Sizeof(p))
-	return doIoctl(fd, code, unsafe.Pointer(prop))
+	return doIoctl(fd, code, prop)
 }
 
 func ioctlUIDEVCREATE(fd uintptr) error {
 	code := ioctlMakeCode(ioctlDirNone, 'U', 1, 0)
-	return doIoctl(fd, code, nil)
+	return doIoctl(fd, code, 0)
 }
 
 func ioctlUIDEVDESTROY(fd uintptr) error {
 	code := ioctlMakeCode(ioctlDirNone, 'U', 2, 0)
-	return doIoctl(fd, code, nil)
+	return doIoctl(fd, code, 0)
 }
 
 // CloneDeviceCustom mirrors the physical device's exact keys, types, and ABS axis ranges.

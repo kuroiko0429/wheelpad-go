@@ -70,18 +70,41 @@ go build -o wheelpad-go
 ./setup.sh
 ```
 
+`sudo ./setup.sh` ではなく通常のユーザーで実行する。システム側の変更が必要な箇所だけ、スクリプト内部で `sudo` を呼び出す。
+
 やっていること:
 
 1. バイナリが無ければビルド
 2. `~/.config/systemd/user/wheelpad.service`を生成
-3. `/etc/udev/rules.d/99-wheelpad.rules`を配置（`sudo`が必要）してデバイスへのアクセス権を付与
-4. `systemctl --user enable --now wheelpad.service`で起動
+3. `/etc/udev/rules.d/71-wheelpad.rules`を配置（`sudo`が必要）し、旧 `99-wheelpad.rules` を削除して udev ルールを再適用
+4. systemd ユーザーサービスをリロードし、自動起動の有効化・失敗状態のリセット・再起動を実行
 
-udevルールに`TAG+="uaccess"`を使っているため、Python版のように`usermod -aG input,uinput`でグループに追加する必要はない。ログイン中のユーザーに自動でアクセス権が付く。
+udevルールに`TAG+="uaccess"`を使っているため、Python版のように`usermod -aG input,uinput`でグループに追加する必要はない。ローカルのアクティブセッションのユーザーにアクセス権が付く。
+
+`uaccess` の ACL 付与は systemd の `73-seat-late.rules` で実行されるため、タグを付けるルールはそれより辞書順で前に置く必要がある。旧 `99-wheelpad.rules` ではタグの付与が遅く、グループ権限などでアクセスできない環境では起動に失敗する。
+
+セッションのアクティブ化による ACL 付与が起動に間に合わない場合に備え、生成するサービスは `RestartSec=5`、`StartLimitIntervalSec=0` としている。恒久的な設定ミスでも再試行は続くため、起動できない場合はログを確認する。
+
+#### 以前のバージョンからの更新
+
+更新したソースツリーで以下を実行する。旧ルールの削除とサービス設定の更新も `setup.sh` が行うため、手動でのリネームは不要。
+
+```bash
+go build -o wheelpad-go
+./setup.sh
+```
+
+設定ファイルは上書きしない。サービスは再起動されるため、操作中のタッチパッド入力が一時的に途切れることがある。
 
 :::message
 `setup.sh`内の`ATTRS{name}=="Synaptics TM3562-003"`はデフォルトのデバイス名。自分のタッチパッド名が違う場合は`config.toml`の`device.name`と合わせて書き換える。
 :::
+
+### タッチパッドの個別設定について
+
+デーモンは物理タッチパッドを排他取得し、通常の入力を `LetsNote-Virtual-Pad`、スクロールを `LetsNote-Virtual-Wheel` から送信する。
+そのため、KDE のタッチパッド設定や Hyprland のデバイス別設定など、物理デバイスに紐づく設定はそのまま引き継がれないことがある。導入後は仮想デバイスに対してタップ・加速度・スクロール方向などを設定し直す。
+コンポジタが使うデバイス識別名は表示名と異なる場合があるため、各環境のデバイス一覧で確認する。
 
 ### 設定ファイル
 
@@ -120,10 +143,21 @@ systemctl --user status wheelpad.service
 journalctl --user -u wheelpad.service -f
 ```
 
-`--debug`フラグを付けて手動起動すると、タッチ検出・スクロール方向・速度がターミナルに出力される。
+`--debug`フラグを付けて手動起動すると、タッチ検出・スクロール方向・速度に加え、開けなかった入力デバイスのパスとエラーがターミナルに出力される。
+先にサービスを停止すること。起動中のサービスと同時に実行すると、デバイスの排他取得が `device or resource busy` で失敗する。
 
 ```bash
-sudo ./wheelpad-go --config ./config.toml --debug
+systemctl --user stop wheelpad.service
+./wheelpad-go --debug
+```
+
+設定ファイルを明示する場合は `--config /path/to/config.toml` を追加する。通常は `sudo` 不要で、root で起動すると通常ユーザーのアクセス権の問題を見逃すことがある。
+`開けません（スキップ）` は対象外の入力デバイスでも表示されるため、対象タッチパッドのイベントノードと照合する。
+
+確認後は `Ctrl+C` で手動起動を終了し、サービスを再開する。
+
+```bash
+systemctl --user start wheelpad.service
 ```
 
 ## ライセンス

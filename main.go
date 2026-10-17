@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -36,20 +37,50 @@ func logDebug(format string, v ...interface{}) {
 	}
 }
 
+// go-evdev's ioctl helper returns errors.New(errno.Error()), losing the errno
+// type. Accept exact errno messages as well as typed errors, including wrappers.
+func isDeviceErrno(err error, errno syscall.Errno) bool {
+	if errors.Is(err, errno) {
+		return true
+	}
+	for cause := err; cause != nil; cause = errors.Unwrap(cause) {
+		if cause.Error() == errno.Error() {
+			return true
+		}
+	}
+	return false
+}
+
+func logInitializationError(err error) {
+	switch {
+	case isDeviceErrno(err, syscall.EBUSY):
+		logError("他のプロセスがデバイスを掴んでいます。wheelpad.service や他の入力デーモンを停止してください: %v", err)
+	case isDeviceErrno(err, syscall.EACCES), isDeviceErrno(err, syscall.EPERM):
+		logError("デーモンの初期化に失敗しました（タッチパッドと /dev/uinput のアクセス権を確認してください）: %v", err)
+	default:
+		logError("デーモンの初期化に失敗しました: %v", err)
+	}
+}
+
 // findTouchpad scans all event devices to find one containing the specified device name.
 func findTouchpad(deviceName string) (string, error) {
 	files, err := filepath.Glob("/dev/input/event*")
 	if err != nil {
 		return "", err
 	}
+	return findTouchpadFromPaths(deviceName, files)
+}
 
+func findTouchpadFromPaths(deviceName string, files []string) (string, error) {
 	for _, f := range files {
 		dev, err := evdev.Open(f)
 		if err != nil {
+			logDebug("開けません（スキップ）: %s: %v", f, err)
 			continue
 		}
 		name, err := dev.Name()
 		if err != nil {
+			logDebug("デバイス名を取得できません（スキップ）: %s: %v", f, err)
 			dev.Close()
 			continue
 		}
@@ -95,7 +126,7 @@ func main() {
 
 	daemon, err := NewWheelpadDaemon(devicePath, cfg)
 	if err != nil {
-		logError("デーモンの初期化に失敗しました (パーミッションを確認してください): %v", err)
+		logInitializationError(err)
 		os.Exit(1)
 	}
 

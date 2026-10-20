@@ -133,6 +133,12 @@ thresholds = [
 enabled = true
 friction = 0.85
 min_velocity = 0.5
+# Optional: a lower stopping speed lets deliberate flicks fade out gently.
+# When omitted or <= 0, uses min_velocity (original behavior).
+# stop_velocity = 0.2
+# Optional: multiplies the release speed so flicks glide faster and further.
+# When omitted or <= 0, uses 1 (original behavior).
+# gain = 2.0
 interval = 0.016
 ```
 

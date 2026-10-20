@@ -10,6 +10,12 @@ import (
 
 const maxSlots = 10
 
+// A pause before lift means the gesture stopped rather than flicked.
+const inertiaReleaseTimeout = 100 * time.Millisecond
+
+// Angle changes smaller than this (radians) are sensor jitter from a resting finger.
+const restJitter = 0.02
+
 type slotState struct {
 	active bool
 	x, y   int
@@ -35,6 +41,10 @@ type WheelpadDaemon struct {
 	hasLastAngle bool
 	lastAngle    float64
 	lastTime     time.Time
+
+	// The finger's last real movement, which may be below the scroll sensitivity.
+	lastMoveAngle float64
+	lastMoveTime  time.Time
 
 	lastDirection       int32
 	lastHorizontal      bool
@@ -227,6 +237,7 @@ func (d *WheelpadDaemon) detectTouchChange() bool {
 					d.lastAngle = math.Atan2(float64(d.currentY)-cy, float64(d.currentX)-cx)
 					d.hasLastAngle = true
 					d.lastTime = time.Now()
+					d.lastMoveAngle, d.lastMoveTime = d.lastAngle, d.lastTime
 					d.lastAngularVelocity = 0.0
 					logDebug("スクロールモード開始")
 				} else {
@@ -236,10 +247,11 @@ func (d *WheelpadDaemon) detectTouchChange() bool {
 			} else {
 				logDebug("タッチ終了: scrollMode=%v", d.scrollMode)
 				if d.scrollMode {
-					logDebug("スクロールモード終了、慣性トリガー: velocity=%.2f", d.lastAngularVelocity)
+					velocity := d.releaseVelocity(time.Now())
+					logDebug("スクロールモード終了、慣性トリガー: velocity=%.2f", velocity)
 					// Trigger inertia scrolling when fingers are lifted from scroll mode
 					d.inertia.Trigger(
-						d.lastAngularVelocity,
+						velocity,
 						d.lastDirection,
 						d.lastHorizontal,
 						d.cfgWp.HiresStep,
@@ -254,6 +266,16 @@ func (d *WheelpadDaemon) detectTouchChange() bool {
 		}
 	}
 	return false
+}
+
+// lastTime advances only for movement large enough to scroll, so slow but steady
+// motion can go longer than the timeout between steps. Judge the pause by the
+// last real movement instead; frames may stop entirely while a finger rests.
+func (d *WheelpadDaemon) releaseVelocity(now time.Time) float64 {
+	if d.lastMoveTime.IsZero() || now.Sub(d.lastMoveTime) >= inertiaReleaseTimeout {
+		return 0
+	}
+	return d.lastAngularVelocity
 }
 
 func (d *WheelpadDaemon) detectFingerCount() {
@@ -284,7 +306,12 @@ func (d *WheelpadDaemon) handleScroll() {
 		d.lastAngle = currentAngle
 		d.hasLastAngle = true
 		d.lastTime = now
+		d.lastMoveAngle, d.lastMoveTime = currentAngle, now
 		return
+	}
+
+	if math.Abs(normalizeAngle(currentAngle-d.lastMoveAngle)) >= restJitter {
+		d.lastMoveAngle, d.lastMoveTime = currentAngle, now
 	}
 
 	angleDiff := normalizeAngle(currentAngle - d.lastAngle)

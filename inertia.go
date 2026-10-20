@@ -16,6 +16,7 @@ type InertiaEngine struct {
 	friction     float64
 	minVelocity  float64
 	stopVelocity float64
+	gain         float64
 	interval     time.Duration
 	enabled      bool
 
@@ -32,6 +33,7 @@ func NewInertiaEngine(vScroll *evdev.InputDevice, writeMutex *sync.Mutex, cfg In
 		friction:     cfg.Friction,
 		minVelocity:  cfg.MinVelocity,
 		stopVelocity: cfg.StopVelocity,
+		gain:         cfg.Gain,
 		interval:     time.Duration(cfg.Interval * float64(time.Second)),
 		enabled:      cfg.Enabled,
 	}
@@ -55,7 +57,16 @@ func (ie *InertiaEngine) Trigger(angularVelocity float64, direction int32, horiz
 	ctx, cancel := context.WithCancel(context.Background())
 	ie.cancelFn = cancel
 
-	go ie.run(ctx, math.Abs(angularVelocity), direction, horizontal, hiresStep)
+	go ie.run(ctx, ie.launchVelocity(angularVelocity), direction, horizontal, hiresStep)
+}
+
+// launchVelocity scales the glide speed; configs without gain keep the release velocity.
+func (ie *InertiaEngine) launchVelocity(angularVelocity float64) float64 {
+	velocity := math.Abs(angularVelocity)
+	if ie.gain > 0 {
+		velocity *= ie.gain
+	}
+	return velocity
 }
 
 // Stop cancels any active inertia scrolling loop.

@@ -35,6 +35,7 @@ type InertiaConfig struct {
 	Friction     float64 `toml:"friction"`
 	MinVelocity  float64 `toml:"min_velocity"`
 	StopVelocity float64 `toml:"stop_velocity"`
+	Gain         float64 `toml:"gain"`
 	Interval     float64 `toml:"interval"` // in seconds
 }
 

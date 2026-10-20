@@ -69,3 +69,12 @@ func TestInertiaConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestLaunchVelocity(t *testing.T) {
+	for _, c := range []struct{ gain, want float64 }{{0, 4}, {-1, 4}, {1, 4}, {2, 8}} {
+		engine := &InertiaEngine{gain: c.gain}
+		if got := engine.launchVelocity(-4); got != c.want {
+			t.Fatalf("gain=%v: got %v want %v", c.gain, got, c.want)
+		}
+	}
+}
